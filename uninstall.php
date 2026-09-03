@@ -2,6 +2,7 @@
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) { exit; }
 
 delete_option( 'cf7sg_settings' );
+delete_option( 'cf7sg_db_version' );
 wp_clear_scheduled_hook( 'cf7sg_daily_cleanup' );
 
 global $wpdb;

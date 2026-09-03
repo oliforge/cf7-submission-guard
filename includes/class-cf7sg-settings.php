@@ -70,20 +70,38 @@ class CF7SG_Settings {
     }
 
     public function menu() {
-        add_options_page(
+        add_menu_page(
             __( 'CF7 Submission Guard', 'cf7-submission-guard' ),
-            __( 'CF7 Submission Guard', 'cf7-submission-guard' ),
+            __( 'Submission Guard', 'cf7-submission-guard' ),
             'manage_options',
             'cf7-submission-guard',
-            array( $this, 'render' )
+            array( $this, 'render_dashboard' ),
+            'dashicons-shield',
+            80
         );
         add_submenu_page(
-            'options-general.php',
+            'cf7-submission-guard',
+            __( 'CF7 Submission Guard Dashboard', 'cf7-submission-guard' ),
+            __( 'Dashboard', 'cf7-submission-guard' ),
+            'manage_options',
+            'cf7-submission-guard',
+            array( $this, 'render_dashboard' )
+        );
+        add_submenu_page(
+            'cf7-submission-guard',
             __( 'CF7 Submission Guard Logs', 'cf7-submission-guard' ),
-            __( 'Submission Guard Logs', 'cf7-submission-guard' ),
+            __( 'Logs', 'cf7-submission-guard' ),
             'manage_options',
             'cf7-submission-guard-logs',
             array( $this, 'render_logs' )
+        );
+        add_submenu_page(
+            'cf7-submission-guard',
+            __( 'CF7 Submission Guard Settings', 'cf7-submission-guard' ),
+            __( 'Settings', 'cf7-submission-guard' ),
+            'manage_options',
+            'cf7-submission-guard-settings',
+            array( $this, 'render_settings' )
         );
     }
 
@@ -145,7 +163,71 @@ class CF7SG_Settings {
         printf( '<textarea class="large-text code" rows="%1$d" name="%2$s[%3$s]">%4$s</textarea>', absint( $rows ), esc_attr( self::OPTION ), esc_attr( $name ), esc_textarea( $s[ $name ] ) );
     }
 
-    public function render() {
+    public function render_dashboard() {
+        if ( ! current_user_can( 'manage_options' ) ) { return; }
+        $s = self::get();
+        $stats = CF7SG_Logger::stats( 30 );
+        ?>
+        <div class="wrap cf7sg-wrap">
+            <h1><?php esc_html_e( 'CF7 Submission Guard', 'cf7-submission-guard' ); ?> <span class="cf7sg-version">v<?php echo esc_html( CF7SG_VERSION ); ?></span></h1>
+            <p>
+                <?php
+                if ( empty( $s['enabled'] ) ) {
+                    esc_html_e( 'Protection is currently disabled.', 'cf7-submission-guard' );
+                } elseif ( 'monitor' === $s['mode'] ) {
+                    esc_html_e( 'Protection is enabled in monitor mode: rule matches are logged but submissions are not blocked.', 'cf7-submission-guard' );
+                } else {
+                    esc_html_e( 'Protection is enabled and enforcing rules on Contact Form 7 submissions.', 'cf7-submission-guard' );
+                }
+                ?>
+            </p>
+
+            <div class="cf7sg-metrics">
+                <div class="cf7sg-metric"><strong><?php echo esc_html( number_format_i18n( $stats['blocked'] ) ); ?></strong><span><?php esc_html_e( 'Blocked, last 30 days', 'cf7-submission-guard' ); ?></span></div>
+                <div class="cf7sg-metric"><strong><?php echo esc_html( number_format_i18n( $stats['allowed'] ) ); ?></strong><span><?php esc_html_e( 'Allowed (logged), last 30 days', 'cf7-submission-guard' ); ?></span></div>
+                <div class="cf7sg-metric"><strong><?php echo empty( $s['rate_limit_enabled'] ) ? esc_html__( 'Off', 'cf7-submission-guard' ) : esc_html( $s['rate_limit_count'] . '/' . $s['rate_limit_minutes'] . 'm' ); ?></strong><span><?php esc_html_e( 'Rate limit', 'cf7-submission-guard' ); ?></span></div>
+            </div>
+
+            <div class="cf7sg-grid">
+                <section class="cf7sg-card">
+                    <h2><?php esc_html_e( 'Most triggered rules, last 30 days', 'cf7-submission-guard' ); ?></h2>
+                    <?php if ( empty( $stats['by_rule'] ) ) : ?>
+                        <p class="description"><?php esc_html_e( 'No blocked submissions in this period.', 'cf7-submission-guard' ); ?></p>
+                    <?php else : ?>
+                        <table class="widefat striped cf7sg-log-table">
+                            <thead><tr><th><?php esc_html_e( 'Rule', 'cf7-submission-guard' ); ?></th><th><?php esc_html_e( 'Count', 'cf7-submission-guard' ); ?></th></tr></thead>
+                            <tbody>
+                            <?php foreach ( $stats['by_rule'] as $row ) : ?>
+                                <tr><td><code><?php echo esc_html( $row->rule ); ?></code></td><td><?php echo esc_html( number_format_i18n( (int) $row->total ) ); ?></td></tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                </section>
+
+                <section class="cf7sg-card">
+                    <h2><?php esc_html_e( 'Recent activity', 'cf7-submission-guard' ); ?></h2>
+                    <?php $recent = CF7SG_Logger::recent( 10 ); ?>
+                    <?php if ( empty( $recent ) ) : ?>
+                        <p class="description"><?php esc_html_e( 'No log entries yet.', 'cf7-submission-guard' ); ?></p>
+                    <?php else : ?>
+                        <table class="widefat striped cf7sg-log-table">
+                            <thead><tr><th><?php esc_html_e( 'Date', 'cf7-submission-guard' ); ?></th><th><?php esc_html_e( 'Result', 'cf7-submission-guard' ); ?></th><th><?php esc_html_e( 'Rule', 'cf7-submission-guard' ); ?></th></tr></thead>
+                            <tbody>
+                            <?php foreach ( $recent as $row ) : ?>
+                                <tr><td><?php echo esc_html( $row->created_at ); ?></td><td><?php echo esc_html( $row->result ); ?></td><td><code><?php echo esc_html( $row->rule ); ?></code></td></tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                        <p><a href="<?php echo esc_url( admin_url( 'admin.php?page=cf7-submission-guard-logs' ) ); ?>"><?php esc_html_e( 'View full log', 'cf7-submission-guard' ); ?> &rarr;</a></p>
+                    <?php endif; ?>
+                </section>
+            </div>
+        </div>
+        <?php
+    }
+
+    public function render_settings() {
         if ( ! current_user_can( 'manage_options' ) ) { return; }
         $s = self::get();
         ?>
@@ -216,7 +298,7 @@ class CF7SG_Settings {
                         <p><?php $this->checkbox( 'log_success', 'Log successful submissions', $s ); ?></p>
                         <p><label>IP storage<br><select name="<?php echo esc_attr( self::OPTION ); ?>[ip_storage]"><option value="anonymized" <?php selected( $s['ip_storage'], 'anonymized' ); ?>>Anonymized</option><option value="full" <?php selected( $s['ip_storage'], 'full' ); ?>>Full IP</option><option value="none" <?php selected( $s['ip_storage'], 'none' ); ?>>Do not store</option></select></label></p>
                         <p><label>Retention, days<br><?php $this->text( 'retention_days', $s, 'number', 1 ); ?></label></p>
-                        <p class="description">Name, email and message contents are never written to the plugin log.</p>
+                        <p class="description">Name and message contents are never written to the plugin log. The submitted email address itself is never stored either — only its domain (e.g. "example.com"), to help spot patterns.</p>
                     </section>
 
                     <section class="cf7sg-card cf7sg-card-wide"><h2>Error messages</h2>
@@ -245,15 +327,15 @@ class CF7SG_Settings {
         $rows = CF7SG_Logger::recent( 200 );
         ?>
         <div class="wrap cf7sg-wrap"><h1>CF7 Submission Guard Logs</h1>
-            <p>Latest 200 events. Submitted field contents are not stored.</p>
+            <p>Latest 200 events. Name and message contents are never stored; the email address itself is never stored either, only its domain.</p>
             <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('Clear all Submission Guard logs?');">
                 <input type="hidden" name="action" value="cf7sg_clear_logs">
                 <?php wp_nonce_field( 'cf7sg_clear_logs' ); ?>
                 <?php submit_button( 'Clear all logs', 'delete', 'submit', false ); ?>
             </form>
-            <table class="widefat striped cf7sg-log-table"><thead><tr><th>Date</th><th>Form</th><th>Result</th><th>Rule</th><th>Field</th><th>IP</th><th>User agent</th></tr></thead><tbody>
-            <?php if ( ! $rows ) : ?><tr><td colspan="7">No log entries.</td></tr><?php else : foreach ( $rows as $row ) : ?>
-                <tr><td><?php echo esc_html( $row->created_at ); ?></td><td><?php echo esc_html( $row->form_id ); ?></td><td><?php echo esc_html( $row->result ); ?></td><td><code><?php echo esc_html( $row->rule ); ?></code></td><td><?php echo esc_html( $row->field_name ); ?></td><td><?php echo esc_html( $row->ip_value ); ?></td><td><?php echo esc_html( $row->user_agent ); ?></td></tr>
+            <table class="widefat striped cf7sg-log-table"><thead><tr><th>Date</th><th>Form</th><th>Result</th><th>Rule</th><th>Field</th><th>Email domain</th><th>IP</th><th class="cf7sg-col-ua">User agent</th></tr></thead><tbody>
+            <?php if ( ! $rows ) : ?><tr><td colspan="8">No log entries.</td></tr><?php else : foreach ( $rows as $row ) : ?>
+                <tr><td><?php echo esc_html( $row->created_at ); ?></td><td><?php echo esc_html( $row->form_id ); ?></td><td><?php echo esc_html( $row->result ); ?></td><td><code><?php echo esc_html( $row->rule ); ?></code></td><td><?php echo esc_html( $row->field_name ); ?></td><td><?php echo esc_html( $row->email_domain ); ?></td><td><?php echo esc_html( $row->ip_value ); ?></td><td class="cf7sg-col-ua"><span class="cf7sg-ua-text"><?php echo esc_html( $row->user_agent ); ?></span><?php if ( '' !== $row->user_agent ) : ?><span class="cf7sg-ua-info" title="<?php echo esc_attr( $row->user_agent ); ?>">&#9432;</span><?php endif; ?></td></tr>
             <?php endforeach; endif; ?></tbody></table>
         </div>
         <?php
@@ -263,7 +345,7 @@ class CF7SG_Settings {
         if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Unauthorized.', 'cf7-submission-guard' ) ); }
         check_admin_referer( 'cf7sg_clear_logs' );
         CF7SG_Logger::clear();
-        wp_safe_redirect( add_query_arg( array( 'page' => 'cf7-submission-guard-logs' ), admin_url( 'options-general.php' ) ) );
+        wp_safe_redirect( add_query_arg( array( 'page' => 'cf7-submission-guard-logs' ), admin_url( 'admin.php' ) ) );
         exit;
     }
 }

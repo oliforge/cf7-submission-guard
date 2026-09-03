@@ -20,6 +20,7 @@ final class CF7SG_Plugin {
         load_plugin_textdomain( 'cf7-submission-guard', false, dirname( plugin_basename( CF7SG_FILE ) ) . '/languages' );
 
         if ( is_admin() ) {
+            $this->maybe_upgrade();
             new CF7SG_Settings();
         }
 
@@ -28,6 +29,17 @@ final class CF7SG_Plugin {
         } elseif ( is_admin() ) {
             add_action( 'admin_notices', array( $this, 'cf7_missing_notice' ) );
         }
+    }
+
+    /**
+     * dbDelta() is idempotent, so re-running it whenever CF7SG_VERSION moves on
+     * is enough to add new columns for sites that already had the plugin active
+     * (activate() alone only runs once, on first activation).
+     */
+    private function maybe_upgrade() {
+        if ( get_option( 'cf7sg_db_version' ) === CF7SG_VERSION ) { return; }
+        CF7SG_Logger::install_table();
+        update_option( 'cf7sg_db_version', CF7SG_VERSION, false );
     }
 
     public function cf7_missing_notice() {
@@ -39,6 +51,7 @@ final class CF7SG_Plugin {
 
     public static function activate() {
         CF7SG_Logger::install_table();
+        update_option( 'cf7sg_db_version', CF7SG_VERSION, false );
         if ( ! wp_next_scheduled( 'cf7sg_daily_cleanup' ) ) {
             wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'cf7sg_daily_cleanup' );
         }

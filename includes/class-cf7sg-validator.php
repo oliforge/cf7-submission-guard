@@ -123,10 +123,14 @@ class CF7SG_Validator {
         return ! in_array( $value, $allowed, true );
     }
 
-    private function blocked_domain( $email ) {
+    private function email_domain( $email ) {
         $at = strrpos( $email, '@' );
-        if ( false === $at ) { return false; }
-        $domain = strtolower( trim( substr( $email, $at + 1 ), ". \t\n\r\0\x0B" ) );
+        if ( false === $at ) { return ''; }
+        return strtolower( trim( substr( $email, $at + 1 ), ". \t\n\r\0\x0B" ) );
+    }
+
+    private function blocked_domain( $email ) {
+        $domain = $this->email_domain( $email );
         if ( '' === $domain ) { return false; }
         foreach ( $this->lines( strtolower( $this->settings['blocked_domains'] ) ) as $blocked ) {
             $blocked = ltrim( $blocked, '.@ ' );
@@ -208,9 +212,10 @@ class CF7SG_Validator {
         }
         if ( $this->duplicate( $ip, $form_id, $message ) ) { $this->add_event( 'duplicate', $s['message_field'], $s['msg_duplicate'] ); }
 
+        $domain = $this->email_domain( $email );
         foreach ( $this->events as $event ) {
             $this->invalidate( $result, sanitize_key( $event['field'] ), $event['message'] );
-            CF7SG_Logger::add( $form_id, 'blocked', $event['rule'], $event['field'], $ip, $s );
+            CF7SG_Logger::add( $form_id, 'blocked', $event['rule'], $event['field'], $ip, $s, $domain );
         }
 
         return $result;
@@ -220,6 +225,7 @@ class CF7SG_Validator {
         $s = $this->settings;
         if ( empty( $s['logging_enabled'] ) || empty( $s['log_success'] ) || ! empty( $this->events ) ) { return; }
         $form_id = method_exists( $contact_form, 'hash' ) && $contact_form->hash() ? $contact_form->hash() : ( method_exists( $contact_form, 'id' ) ? $contact_form->id() : '' );
-        CF7SG_Logger::add( $form_id, 'allowed', 'passed', '', $this->ip(), $s );
+        $domain = $this->email_domain( $this->raw( $s['email_field'] ) );
+        CF7SG_Logger::add( $form_id, 'allowed', 'passed', '', $this->ip(), $s, $domain );
     }
 }
