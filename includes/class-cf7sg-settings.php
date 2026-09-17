@@ -230,20 +230,38 @@ class CF7SG_Settings {
     public function render_settings() {
         if ( ! current_user_can( 'manage_options' ) ) { return; }
         $s = self::get();
+        $tabs = array(
+            'general'   => __( 'General', 'cf7-submission-guard' ),
+            'fields'    => __( 'Core fields', 'cf7-submission-guard' ),
+            'content'   => __( 'Content rules', 'cf7-submission-guard' ),
+            'domains'   => __( 'Email domains', 'cf7-submission-guard' ),
+            'country'   => __( 'Country', 'cf7-submission-guard' ),
+            'timing'    => __( 'Rate limit & timing', 'cf7-submission-guard' ),
+            'consent'   => __( 'Consent', 'cf7-submission-guard' ),
+            'logging'   => __( 'Logging', 'cf7-submission-guard' ),
+            'messages'  => __( 'Error messages', 'cf7-submission-guard' ),
+        );
         ?>
         <div class="wrap cf7sg-wrap">
             <h1><?php esc_html_e( 'CF7 Submission Guard', 'cf7-submission-guard' ); ?> <span class="cf7sg-version">v<?php echo esc_html( CF7SG_VERSION ); ?></span></h1>
             <p><?php esc_html_e( 'Server-side submission rules for Contact Form 7. Field names must match the CF7 form-tag names.', 'cf7-submission-guard' ); ?></p>
             <form method="post" action="options.php">
                 <?php settings_fields( 'cf7sg_group' ); ?>
-                <div class="cf7sg-grid">
-                    <section class="cf7sg-card"><h2>General</h2>
+
+                <h2 class="nav-tab-wrapper cf7sg-tab-nav">
+                    <?php foreach ( $tabs as $slug => $label ) : ?>
+                        <a href="#cf7sg-tab-<?php echo esc_attr( $slug ); ?>" class="nav-tab" data-cf7sg-tab="<?php echo esc_attr( $slug ); ?>"><?php echo esc_html( $label ); ?></a>
+                    <?php endforeach; ?>
+                </h2>
+
+                <div class="cf7sg-tab-panels">
+                    <section class="cf7sg-tab-panel" id="cf7sg-tab-general" data-cf7sg-panel="general">
                         <p><?php $this->checkbox( 'enabled', 'Enable protection', $s ); ?></p>
                         <p><label>Mode<br><select name="<?php echo esc_attr( self::OPTION ); ?>[mode]"><option value="enforce" <?php selected( $s['mode'], 'enforce' ); ?>>Enforce</option><option value="monitor" <?php selected( $s['mode'], 'monitor' ); ?>>Monitor only</option></select></label></p>
                         <p><label>Generic error field<br><?php $this->text( 'error_field', $s ); ?></label></p>
                     </section>
 
-                    <section class="cf7sg-card"><h2>Core fields</h2>
+                    <section class="cf7sg-tab-panel" id="cf7sg-tab-fields" data-cf7sg-panel="fields">
                         <p><label>Name field<br><?php $this->text( 'name_field', $s ); ?></label></p>
                         <p><label>Maximum name length<br><?php $this->text( 'name_max', $s, 'number', 0 ); ?></label></p>
                         <p><label>Message field<br><?php $this->text( 'message_field', $s ); ?></label></p>
@@ -253,7 +271,7 @@ class CF7SG_Settings {
                         <p><label>Country field<br><?php $this->text( 'country_field', $s ); ?></label></p>
                     </section>
 
-                    <section class="cf7sg-card"><h2>Content rules</h2>
+                    <section class="cf7sg-tab-panel" id="cf7sg-tab-content" data-cf7sg-panel="content">
                         <p><label>Fields, one per line<br><?php $this->textarea( 'content_fields', $s, 4 ); ?></label></p>
                         <p><?php $this->checkbox( 'block_urls', 'Block URLs/domains', $s ); ?></p>
                         <p><?php $this->checkbox( 'block_at', 'Block @ character', $s ); ?></p>
@@ -265,17 +283,17 @@ class CF7SG_Settings {
                         <p><label>Forbidden words/phrases, one per line<br><?php $this->textarea( 'forbidden_words', $s, 5 ); ?></label></p>
                     </section>
 
-                    <section class="cf7sg-card"><h2>Email domains</h2>
+                    <section class="cf7sg-tab-panel" id="cf7sg-tab-domains" data-cf7sg-panel="domains">
                         <p>Blocked domains, one per line. Subdomains are blocked too.</p>
                         <?php $this->textarea( 'blocked_domains', $s, 10 ); ?>
                     </section>
 
-                    <section class="cf7sg-card"><h2>Country</h2>
+                    <section class="cf7sg-tab-panel" id="cf7sg-tab-country" data-cf7sg-panel="country">
                         <p>Allowed submitted values, one per line. If empty, the plugin validates against the CF7 select tag values when available.</p>
                         <?php $this->textarea( 'allowed_countries', $s, 10 ); ?>
                     </section>
 
-                    <section class="cf7sg-card"><h2>Rate limit & timing</h2>
+                    <section class="cf7sg-tab-panel" id="cf7sg-tab-timing" data-cf7sg-panel="timing">
                         <p><?php $this->checkbox( 'rate_limit_enabled', 'Enable IP rate limiting', $s ); ?></p>
                         <p><label>Maximum attempts<br><?php $this->text( 'rate_limit_count', $s, 'number', 1 ); ?></label></p>
                         <p><label>Period, minutes<br><?php $this->text( 'rate_limit_minutes', $s, 'number', 1 ); ?></label></p>
@@ -287,13 +305,13 @@ class CF7SG_Settings {
                         <p><label>Duplicate window, minutes<br><?php $this->text( 'duplicate_minutes', $s, 'number', 1 ); ?></label></p>
                     </section>
 
-                    <section class="cf7sg-card"><h2>Consent validation</h2>
+                    <section class="cf7sg-tab-panel" id="cf7sg-tab-consent" data-cf7sg-panel="consent">
                         <p><?php $this->checkbox( 'required_consent', 'Require configured consent field', $s ); ?></p>
                         <p><label>Consent field<br><?php $this->text( 'consent_field', $s ); ?></label></p>
                         <p class="description">This does not create consent text; it only validates the submitted CF7 field.</p>
                     </section>
 
-                    <section class="cf7sg-card"><h2>Logging</h2>
+                    <section class="cf7sg-tab-panel" id="cf7sg-tab-logging" data-cf7sg-panel="logging">
                         <p><?php $this->checkbox( 'logging_enabled', 'Enable security logging', $s ); ?></p>
                         <p><?php $this->checkbox( 'log_success', 'Log successful submissions', $s ); ?></p>
                         <p><label>IP storage<br><select name="<?php echo esc_attr( self::OPTION ); ?>[ip_storage]"><option value="anonymized" <?php selected( $s['ip_storage'], 'anonymized' ); ?>>Anonymized</option><option value="full" <?php selected( $s['ip_storage'], 'full' ); ?>>Full IP</option><option value="none" <?php selected( $s['ip_storage'], 'none' ); ?>>Do not store</option></select></label></p>
@@ -301,7 +319,7 @@ class CF7SG_Settings {
                         <p class="description">Name and message contents are never written to the plugin log. The submitted email address itself is never stored either — only its domain (e.g. "example.com"), to help spot patterns.</p>
                     </section>
 
-                    <section class="cf7sg-card cf7sg-card-wide"><h2>Error messages</h2>
+                    <section class="cf7sg-tab-panel" id="cf7sg-tab-messages" data-cf7sg-panel="messages">
                         <div class="cf7sg-message-grid">
                         <?php
                         $labels = array(
@@ -316,9 +334,45 @@ class CF7SG_Settings {
                         </div>
                     </section>
                 </div>
+
                 <?php submit_button(); ?>
             </form>
         </div>
+        <script>
+        ( function() {
+            var nav = document.querySelector( '.cf7sg-tab-nav' );
+            if ( ! nav ) { return; }
+            var links = Array.prototype.slice.call( nav.querySelectorAll( '[data-cf7sg-tab]' ) );
+            var panels = Array.prototype.slice.call( document.querySelectorAll( '[data-cf7sg-panel]' ) );
+            var storageKey = 'cf7sg_settings_tab';
+
+            function activate( slug ) {
+                if ( ! slug || ! links.some( function( l ) { return l.getAttribute( 'data-cf7sg-tab' ) === slug; } ) ) {
+                    slug = links.length ? links[0].getAttribute( 'data-cf7sg-tab' ) : null;
+                }
+                links.forEach( function( l ) {
+                    l.classList.toggle( 'nav-tab-active', l.getAttribute( 'data-cf7sg-tab' ) === slug );
+                } );
+                panels.forEach( function( p ) {
+                    p.classList.toggle( 'is-active', p.getAttribute( 'data-cf7sg-panel' ) === slug );
+                } );
+                try { window.localStorage.setItem( storageKey, slug ); } catch ( e ) {}
+            }
+
+            links.forEach( function( link ) {
+                link.addEventListener( 'click', function( e ) {
+                    e.preventDefault();
+                    activate( link.getAttribute( 'data-cf7sg-tab' ) );
+                } );
+            } );
+
+            var initial = window.location.hash ? window.location.hash.replace( '#cf7sg-tab-', '' ) : '';
+            if ( ! initial ) {
+                try { initial = window.localStorage.getItem( storageKey ); } catch ( e ) {}
+            }
+            activate( initial );
+        } )();
+        </script>
         <?php
     }
 
